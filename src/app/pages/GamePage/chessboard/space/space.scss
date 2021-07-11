@@ -1,0 +1,12 @@
+.space {
+  display: grid;
+  place-content: center;
+  height: 91px;
+  width: 91px;
+  &_light {
+    background-color: #fff;
+  }
+  &_dark {
+    background-color: #85cdca;
+  }
+}

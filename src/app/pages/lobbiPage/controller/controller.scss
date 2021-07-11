@@ -1,0 +1,43 @@
+.controller {
+  position: relative;
+  margin: 0 auto;
+  transform: translateY(-30%);
+  width: 273px;
+  height: 290px;
+  &__btn {
+    position: absolute;
+    width: 81px;
+    height: 81px;
+    background: #c4c4c4;
+    border: 3px solid #e8a87c;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 100%;
+    color: #f2ffff;
+  }
+  &__btn:nth-child(1) {
+    z-index: 100;
+    top: 0;
+    right: 0;
+    font-size: 18px;
+    line-height: 25px;
+    background: #40b3a2;
+  }
+  &__btn:nth-child(2) {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 273px;
+    height: 273px;
+    font-size: 72px;
+    line-height: 98px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  &__btn:nth-child(3) {
+    font-size: 12px;
+    line-height: 16px;
+    bottom: 0;
+    left: 0;
+  }
+}

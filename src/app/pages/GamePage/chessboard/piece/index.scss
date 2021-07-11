@@ -1,0 +1,19 @@
+.light {
+  fill: #fff;
+}
+.dark {
+  fill: #40b3a2;
+}
+.m {
+  pointer-events: none;
+}
+.piece {
+  height: 78px;
+  width: 78px;
+  &:hover {
+    cursor: grab;
+  }
+  &:active {
+    cursor: grabbing;
+  }
+}

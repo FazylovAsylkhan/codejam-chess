@@ -1,0 +1,11 @@
+.chessboard {
+  height: 738px;
+  width: 738px;
+  margin: 25px auto 25px;
+  display: grid;
+  grid-template-columns: repeat(8, 91px);
+  grid-template-rows: repeat(8, 91px);
+  border: 5px solid #40b3a2;
+  border-radius: 2px;
+  background-color: #40b3a2;
+}

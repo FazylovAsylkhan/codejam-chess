@@ -1,0 +1,33 @@
+.header {
+  position: relative;
+  width: 100%;
+  height: 84px;
+  background-color: #85cdca;
+  border: 5px solid #40b3a2;
+  border-radius: 2px;
+  display: flex;
+  &__logo {
+    position: absolute;
+    top: 16px;
+    left: 49px;
+    width: 132px;
+    height: 58px;
+  }
+  &__img {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  &__text {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0;
+    font-weight: bold;
+    font-size: 36px;
+    line-height: 49px;
+    color: #fff;
+    text-shadow: black 1px 1px 0, black -1px -1px 0, black -1px 1px 0,
+      black 1px -1px 0;
+  }
+}
