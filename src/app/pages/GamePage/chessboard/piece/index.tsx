@@ -1,11 +1,5 @@
 import React, { FC } from 'react';
-import { PieceTypes, Position } from '../../../../types/piece';
-import Pawn from '../pieces/Pawn';
-import Bishop from '../pieces/Bishop';
-import Knight from '../pieces/Knight';
-import Rook from '../pieces/Rook';
-import Queen from '../pieces/Queen';
-import King from '../pieces/King';
+import { PieceTypes, Position, TeamTypes } from '../../../../types/piece';
 import './index.scss';
 
 interface PieceProps {
@@ -16,25 +10,24 @@ interface PieceProps {
 }
 
 export const Piece: FC<PieceProps> = (props) => {
-  const {
-    type, team, position, enPassant,
-  } = props;
+  const { type, team } = props;
   const {
     PAWN, ROOK, KNIGHT, BISHOP, QUEEN, KING,
   } = PieceTypes;
+  const color = TeamTypes.DARK === team ? 'd' : 'l';
   switch (type) {
     case PAWN:
-      return <Pawn enPassant={enPassant} type={type} team={team} position={position}/>;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/pawn-${color}.png`} alt="piece" /></div>;
     case BISHOP:
-      return <Bishop type={type} team={team} position={position} />;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/bishop-${color}.png`} alt="piece" /></div>;
     case KNIGHT:
-      return <Knight type={type} team={team} position={position} />;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/knight-${color}.png`} alt="piece" /></div>;
     case ROOK:
-      return <Rook type={type} team={team} position={position} />;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/rook-${color}.png`} alt="piece" /></div>;
     case QUEEN:
-      return <Queen type={type} team={team} position={position} />;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/queen-${color}.png`} alt="piece" /></div>;
     case KING:
-      return <King type={type} team={team} position={position} />;
+      return <div className="piece"><img className="piece__img" src={`./images/pieces/king-${color}.png`} alt="piece" /></div>;
     default:
       return <div></div>;
   }
@@ -42,7 +35,7 @@ export const Piece: FC<PieceProps> = (props) => {
 
 export function createPiece(
   position: Position, type: number,
-  team: number, enPassant: boolean,
+  team: number, enPassant: boolean = false,
 ) {
   return <Piece enPassant={enPassant}
       position={position} type={type} team={team} />;

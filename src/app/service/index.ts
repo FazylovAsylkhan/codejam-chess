@@ -3,9 +3,12 @@ import { GRID_SIZE, HIGHT_OF_CHESSBOARD } from '../config/constants';
 import { createPiece } from '../pages/GamePage/chessboard/piece';
 import { createSpace } from '../pages/GamePage/chessboard/space/Space';
 import {
-  ActivePieceState, BoardState, ChessboardRef, StateCurrentPiece, StateGrabPosition, StateOrder,
+  ActivePieceState, BoardState, ChessboardRef,
+  StateCurrentPiece, StateGrabPosition, StateOrder, StateValidSpaces,
 } from '../types/chessboard';
-import { Position, PieceTypes, TeamTypes } from '../types/piece';
+import {
+  ActionTypes, PieceTypes, Position, TeamTypes,
+} from '../types/piece';
 import Referee from './referee';
 import { getValidedValue, isSamePosition } from './utils';
 
@@ -14,15 +17,15 @@ class ChessboardService {
 
   boardState: BoardState;
 
-  chessboardRef: ChessboardRef;
+  validSpaces: StateValidSpaces;
 
-  stateGrabPosition: StateGrabPosition;
+  chessboardRef: ChessboardRef;
 
   referee: Referee;
 
   desiredPosition: Position = { x: -1, y: -1 };
 
-  grabPosition: Position = { x: -1, y: -1 };
+  stateGrabPosition: StateGrabPosition;
 
   stateCurrentPiece: StateCurrentPiece;
 
@@ -31,38 +34,35 @@ class ChessboardService {
   constructor(chessboardRef: ChessboardRef, initialBoardState: JSX.Element[]) {
     this.activePieceState = useState<HTMLElement | null>(null);
     this.chessboardRef = chessboardRef;
+    this.validSpaces = useState<string[]>([]);
     this.boardState = useState<JSX.Element[]>(initialBoardState);
-    this.stateGrabPosition = useState<Position>({ x: -1, y: -1 });
     this.referee = new Referee(this.boardState);
     this.stateOrder = useState<TeamTypes>(TeamTypes.LIGHT);
+    this.stateGrabPosition = useState<Position>({ x: -1, y: -1 });
     this.stateCurrentPiece = useState<JSX.Element | undefined>(undefined);
   }
 
   grabPiece(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     const element = e.target as HTMLElement;
     const chessboard = this.chessboardRef.current;
-    const setGrabPosition = this.stateGrabPosition[1];
-    const setActivePiece = this.activePieceState[1];
-    const setCurrentPiece = this.stateCurrentPiece[1];
     const [board] = this.boardState;
     const [order] = this.stateOrder;
+    const setActivePiece = this.activePieceState[1];
+    const setCurrentPiece = this.stateCurrentPiece[1];
+    const setGrabPosition = this.stateGrabPosition[1];
 
     if (element.classList.contains('piece') && chessboard) {
-      const x = e.clientX;
-      const y = e.clientY;
-      this.grabPosition = {
-        x: Math.floor((x - chessboard.offsetLeft) / GRID_SIZE),
-        y: Math.abs(
-          Math.ceil(
-            (y - chessboard.offsetTop - HIGHT_OF_CHESSBOARD) / GRID_SIZE,
-          ),
-        ),
-      };
+      e.preventDefault();
+      const X = Math.floor((e.clientX - chessboard.offsetLeft) / GRID_SIZE);
+      const Y = Math.abs(Math.ceil((
+        e.clientY - chessboard.offsetTop - HIGHT_OF_CHESSBOARD) / GRID_SIZE));
+      const grabPosition = { x: X, y: Y };
+      setGrabPosition(grabPosition);
 
       const currentSpace = board.find((space) => {
         if (space.props.piece) {
           const { position, team } = space.props.piece.props;
-          if (isSamePosition(position, this.grabPosition) && team === order) {
+          if (isSamePosition(position, grabPosition) && team === order) {
             return true;
           }
         }
@@ -73,9 +73,10 @@ class ChessboardService {
       if (currentSpace !== undefined) {
         const currentPiece = currentSpace.props.piece;
         element.style.position = 'absolute';
-        element.style.left = `${x - GRID_SIZE / 2}px`;
-        element.style.top = `${y - GRID_SIZE / 2}px`;
-        setGrabPosition(this.grabPosition);
+        element.style.left = `${e.clientX - GRID_SIZE / 2}px`;
+        element.style.top = `${e.clientY - GRID_SIZE / 2}px`;
+        element.parentElement?.classList.add('space_initial');
+        this.showValidMove(currentPiece, grabPosition);
         setActivePiece(element);
         setCurrentPiece(currentPiece);
       }
@@ -88,10 +89,10 @@ class ChessboardService {
 
     if (activePiece && chessboard) {
       const piece = activePiece;
-      const minX = chessboard.offsetLeft - 25;
-      const minY = chessboard.offsetTop - 25;
-      const maxX = chessboard.offsetLeft + chessboard.clientWidth - 75;
-      const maxY = chessboard.offsetTop + chessboard.clientHeight - 75;
+      const minX = chessboard.offsetLeft - GRID_SIZE * 0.1;
+      const minY = chessboard.offsetTop;
+      const maxX = chessboard.offsetLeft + chessboard.clientWidth - GRID_SIZE * 0.65;
+      const maxY = chessboard.offsetTop + chessboard.clientHeight - GRID_SIZE * 0.80;
       const x = e.clientX - GRID_SIZE / 2;
       const y = e.clientY - GRID_SIZE / 2;
 
@@ -102,10 +103,12 @@ class ChessboardService {
   }
 
   dropPiece(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
+    const [grabPosition] = this.stateGrabPosition;
     const [activePiece, setActivePiece] = this.activePieceState;
     const chessboard = this.chessboardRef.current;
-    const [grabPosition] = this.stateGrabPosition;
     const [currentPiece] = this.stateCurrentPiece;
+    const [order, setOrder] = this.stateOrder;
+    const newOrder = order === TeamTypes.LIGHT ? TeamTypes.DARK : TeamTypes.LIGHT;
 
     if (activePiece && chessboard) {
       this.desiredPosition = {
@@ -120,110 +123,63 @@ class ChessboardService {
           grabPosition,
           this.desiredPosition,
           currentPiece,
-          activePiece,
         );
 
-        if (typeAction) {
+        if (typeAction !== ActionTypes.NOT_VALID) {
           this.updateBoardState(typeAction);
-          this.changeOrder();
+          setOrder(newOrder);
           setActivePiece(null);
+          this.resetValidMove();
+          activePiece.parentElement?.classList.remove('space_initial');
         } else {
           this.resetActivePiece();
           setActivePiece(null);
+          this.resetValidMove();
+          activePiece.parentElement?.classList.remove('space_initial');
         }
       }
     }
   }
 
-  updateBoardState(typeAction: PieceTypes | string) {
-    const setBoard = this.boardState[1];
+  updateBoardState(specialAction: ActionTypes) {
     const [grabPosition] = this.stateGrabPosition;
+    const [board, setBoard] = this.boardState;
+    const updatedBoardState = [] as JSX.Element[];
 
-    if (typeAction === 'enPassant') {
+    board.forEach((space) => {
+      const { key } = space;
+      const { positionSpace, number } = space.props;
       const attackedPosition = {
         x: this.desiredPosition.x,
         y: this.desiredPosition.y - (1 * this.referee.getPieceDirection()),
       };
 
-      setBoard(this.getUpdatedBoard(attackedPosition));
-    }
-
-    if (typeAction === 'defaultMovePawn') {
-      const enPassantValue = Math.abs(grabPosition.y - this.desiredPosition.y) === 2;
-
-      setBoard(this.getUpdatedBoard(this.desiredPosition, enPassantValue));
-    }
-
-    if (typeAction === 'defaultMove') {
-      setBoard(this.getUpdatedBoard(this.desiredPosition));
-    }
-  }
-
-  getSpace(positionSpace: Position) {
-    const [board] = this.boardState;
-
-    return board.find((space) => {
-      const { piece } = space.props;
-      if (piece) {
-        const { position } = piece.props;
-        if (isSamePosition(position, positionSpace)) {
-          return true;
+      if (specialAction === ActionTypes.EN_PASSANT
+        && isSamePosition(positionSpace, attackedPosition)) {
+        const newSpace = createSpace(positionSpace, null, key, number);
+        updatedBoardState.push(newSpace);
+      } else if (isSamePosition(positionSpace, grabPosition)) {
+        const newSpace = createSpace(positionSpace, null, key, number);
+        updatedBoardState.push(newSpace);
+      } else if (isSamePosition(positionSpace, this.desiredPosition)) {
+        const initialSpace = board.find((s) => isSamePosition(
+          s.props.positionSpace, grabPosition,
+        ));
+        if (initialSpace) {
+          const { type, team } = initialSpace.props.piece.props;
+          const enPassantValue = Math.abs(grabPosition.y - this.desiredPosition.y) === 2;
+          const newPiece = type === PieceTypes.PAWN
+            ? createPiece(positionSpace, type, team, enPassantValue)
+            : createPiece(positionSpace, type, team);
+          const newSpace = createSpace(positionSpace, newPiece, key, number);
+          updatedBoardState.push(newSpace);
         }
+      } else {
+        updatedBoardState.push(space);
       }
-
-      return false;
     });
-  }
 
-  getUpdatedBoard(
-    position: Position,
-    enPassantValue: boolean = false,
-  ) {
-    const [board] = this.boardState;
-    const updatedPieces = board.reduce((results, space) => {
-      const s = this.getNewSpace(space, position, enPassantValue);
-      if (s !== null) results.push(s);
-
-      return results;
-    }, [] as JSX.Element[]);
-
-    return updatedPieces;
-  }
-
-  getNewSpace(
-    space: JSX.Element, desiredPosition: Position, enPassantValue: boolean,
-  ) {
-    const [grabPosition] = this.stateGrabPosition;
-    const { key } = space;
-    const { positionSpace, number } = space.props;
-
-    if (isSamePosition(positionSpace, desiredPosition)) {
-      const initialSpace = this.getSpace(grabPosition);
-      if (initialSpace) {
-        const { team, type } = initialSpace.props.piece.props;
-        window.console.log(space.props.piece?.props.team, 'desiredSpace');
-        window.console.log(initialSpace.props.piece.props.team, 'initialSpace for Piece');
-        window.console.log('======================================');
-        const newPiece = createPiece(positionSpace, type, team, enPassantValue);
-        const newSpace = createSpace(positionSpace, newPiece, key, number);
-        return newSpace;
-      }
-    }
-
-    if (isSamePosition(positionSpace, grabPosition)) {
-      const newSpace = createSpace(positionSpace, null, key, number);
-      return newSpace;
-    }
-
-    if (space.props.piece) {
-      const { type, team } = space.props.piece.props;
-      const newPiece = createPiece(positionSpace, type, team, enPassantValue);
-      const newSpace = createSpace(positionSpace, newPiece, key, number);
-      return newSpace;
-    }
-
-    const newSpace = createSpace(positionSpace, null, key, number);
-    return newSpace;
+    setBoard(updatedBoardState);
   }
 
   getBoardState() {
@@ -239,11 +195,37 @@ class ChessboardService {
     }
   }
 
-  changeOrder() {
-    const [order, setOrder] = this.stateOrder;
-    const value = order === TeamTypes.LIGHT ? TeamTypes.DARK : TeamTypes.LIGHT;
+  showValidMove(currentPiece: JSX.Element, grabPosition: Position) {
+    const [board] = this.boardState;
+    const SetValidSpaces = this.validSpaces[1];
+    const validSpaces = [] as string[];
 
-    setOrder(value);
+    board.forEach((space) => {
+      const { positionSpace } = space.props;
+      const chessboard = this.chessboardRef.current;
+      const typeAction = this.referee.getTypeAction(
+        grabPosition,
+        positionSpace,
+        currentPiece,
+      );
+      if (typeAction === ActionTypes.DEFAULT || typeAction === ActionTypes.EN_PASSANT) {
+        const { x, y } = positionSpace;
+        validSpaces.push(`${x}-${y}`);
+        const s = chessboard?.querySelector(`[data-position="${x}-${y}"]`);
+        s?.classList.add('space_valid');
+      }
+    });
+    SetValidSpaces(validSpaces);
+  }
+
+  resetValidMove() {
+    const chessboard = this.chessboardRef.current;
+    const [validSpaces, setValidSpaces] = this.validSpaces;
+    validSpaces.forEach((value) => {
+      const s = chessboard?.querySelector(`[data-position="${value}"]`);
+      s?.classList.remove('space_valid');
+    });
+    setValidSpaces([]);
   }
 }
 

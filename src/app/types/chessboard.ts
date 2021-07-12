@@ -21,3 +21,7 @@ export type StateCurrentPiece = [
   JSX.Element | undefined,
   React.Dispatch<React.SetStateAction<JSX.Element | undefined>>,
 ];
+export type StateValidSpaces = [
+  string[],
+  React.Dispatch<React.SetStateAction<string[]>>,
+];

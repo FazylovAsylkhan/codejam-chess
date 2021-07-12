@@ -26,7 +26,6 @@ function getInitialPiecesState() {
 }
 
 export default function getInitialBoardState() {
-  window.console.log('getInitialBoardState');
   const board = [];
   const pieces = getInitialPiecesState();
 

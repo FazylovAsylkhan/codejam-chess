@@ -1,15 +1,13 @@
-.light {
-  fill: #fff;
-}
-.dark {
-  fill: #40b3a2;
-}
-.m {
-  pointer-events: none;
-}
 .piece {
-  height: 78px;
-  width: 78px;
+  display: block;
+  height: 91px;
+  width: 91px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &__img{
+    pointer-events: none;
+  }
   &:hover {
     cursor: grab;
   }

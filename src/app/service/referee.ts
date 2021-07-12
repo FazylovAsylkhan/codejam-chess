@@ -1,4 +1,6 @@
-import { PieceTypes, Position, TeamTypes } from '../types/piece';
+import {
+  ActionTypes, PieceTypes, Position, TeamTypes,
+} from '../types/piece';
 import { isSamePosition } from './utils';
 
 type BoardState = [JSX.Element[], React.Dispatch<React.SetStateAction<JSX.Element[]>>];
@@ -14,8 +16,6 @@ class Referee {
 
   team: TeamTypes = 0;
 
-  activePiece: HTMLElement | null = null;
-
   constructor(boardState: BoardState) {
     this.boardState = boardState;
   }
@@ -24,39 +24,36 @@ class Referee {
     initialPosition: Position,
     desiredPosition: Position,
     currentPiece: JSX.Element,
-    activePiece: HTMLElement,
   ) {
     this.IP = initialPosition;
     this.DP = desiredPosition;
     this.type = currentPiece.props.type;
     this.team = currentPiece.props.team;
-    this.activePiece = activePiece;
-
     if (this.isEnPassantMove()) {
-      return 'enPassant';
+      return ActionTypes.EN_PASSANT;
     }
 
     switch (this.type) {
       case PieceTypes.PAWN:
-        if (this.isPawnValidMove()) return 'defaultMovePawn';
-        return null;
+        if (this.isPawnValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       case PieceTypes.ROOK:
-        if (this.isRookValidMove()) return 'defaultMove';
-        return null;
+        if (this.isRookValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       case PieceTypes.KNIGHT:
-        if (this.isKnightValidMove()) return 'defaultMove';
-        return null;
+        if (this.isKnightValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       case PieceTypes.BISHOP:
-        if (this.isBishopValidMove()) return 'defaultMove';
-        return null;
+        if (this.isBishopValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       case PieceTypes.QUEEN:
-        if (this.isQueenValidMove()) return 'defaultMove';
-        return null;
+        if (this.isQueenValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       case PieceTypes.KING:
-        if (this.isKingValidMove()) return 'defaultMove';
-        return null;
+        if (this.isKingValidMove()) return ActionTypes.DEFAULT;
+        return ActionTypes.NOT_VALID;
       default:
-        return null;
+        return ActionTypes.NOT_VALID;
     }
   }
 
@@ -155,27 +152,30 @@ class Referee {
     const isStepsByX = IPY === DPY;
 
     if (isStepsByY || isStepsByX) {
-      const IPXORY = isStepsByY ? IPY : IPX;
-      const DPXORY = isStepsByY ? DPY : DPX;
-      const start = IPXORY + (1 * this.getPieceDirection());
-      const end = DPXORY - (1 * this.getPieceDirection());
-      const isLightTeam = this.team === TeamTypes.LIGHT;
-      const startWay = isLightTeam ? start : end;
-      const endWay = isLightTeam ? end : start;
+      let start;
+      let end;
       let isEmptyWay = true;
-
-      for (let i = startWay; i <= endWay; i += 1) {
-        if (isStepsByY) {
-          const position = { x: this.DP.x, y: i };
+      if (isStepsByY) {
+        start = DPY - IPY > 0 ? IPY + 1 : DPY + 1;
+        end = DPY - IPY > 0 ? DPY - 1 : IPY - 1;
+        for (let i = start; i <= end; i += 1) {
+          const position = { x: DPX, y: i };
           if (this.isSpaceOccupied(position)) isEmptyWay = false;
-        } else {
-          const position = { x: i, y: this.DP.y };
+        }
+      }
+      if (isStepsByX) {
+        start = DPX - IPX > 0 ? IPX + 1 : DPX + 1;
+        end = DPX - IPX > 0 ? DPX - 1 : IPX - 1;
+        for (let i = start; i <= end; i += 1) {
+          const position = { x: i, y: DPY };
           if (this.isSpaceOccupied(position)) isEmptyWay = false;
         }
       }
 
       if (isEmptySpace || this.isSpaceOccupiedByOpponent()) {
-        if (isEmptyWay) return true;
+        if (isEmptyWay) {
+          return true;
+        }
       }
     }
 
@@ -208,10 +208,7 @@ class Referee {
     const DPX = this.DP.x; const DPY = this.DP.y;
     const IPX = this.IP.x; const IPY = this.IP.y;
     const isEmptySpace = !this.isSpaceOccupied(this.DP);
-
-    const isMoveByX = Math.abs(DPX - IPX) > 0 && Math.abs(DPX - IPX) < 8;
-    const isMoveByY = Math.abs(DPY - IPY) > 0 && Math.abs(DPY - IPY) < 8;
-    const isEquilMoveByDioganal = isMoveByX === isMoveByY;
+    const isEquilMoveByDioganal = Math.abs(DPX - IPX) === Math.abs(DPY - IPY);
 
     if (isEquilMoveByDioganal) {
       const maxValue = Math.abs(DPX - IPX);
@@ -228,8 +225,10 @@ class Referee {
         if (this.isSpaceOccupied(position)) isEmptyWay = false;
       }
 
-      if (isEmptySpace || this.isSpaceOccupiedByOpponent()) {
-        if (isEmptyWay) return true;
+      if (isEquilMoveByDioganal) {
+        if (isEmptySpace || this.isSpaceOccupiedByOpponent()) {
+          if (isEmptyWay) return true;
+        }
       }
     }
 
@@ -246,12 +245,17 @@ class Referee {
   isKingValidMove() {
     const DPX = this.DP.x; const DPY = this.DP.y;
     const IPX = this.IP.x; const IPY = this.IP.y;
+    const isStepsByY = IPX === DPX;
+    const isStepsByX = IPY === DPY;
 
     const isEmptySpace = !this.isSpaceOccupied(this.DP);
     const isOneStepByX = Math.abs(DPX - IPX) === 1;
     const isOneStepByY = Math.abs(DPY - IPY) === 1;
+    const isEquilMoveByDioganal = Math.abs(DPX - IPX) === Math.abs(DPY - IPY);
 
-    if (isOneStepByX || isOneStepByY) {
+    if ((isStepsByX && isOneStepByX) || (isStepsByY && isOneStepByY)) {
+      if (isEmptySpace || this.isSpaceOccupiedByOpponent()) return true;
+    } if (isEquilMoveByDioganal && isOneStepByX) {
       if (isEmptySpace || this.isSpaceOccupiedByOpponent()) return true;
     }
 

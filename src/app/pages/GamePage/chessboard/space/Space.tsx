@@ -9,13 +9,14 @@ interface SpaceProps {
 }
 
 export const Space: FC<SpaceProps> = (props) => {
-  const { number, piece } = props;
+  const { number, piece, positionSpace } = props;
   const isEven = number % 2 === 0;
+  const { x, y } = positionSpace;
 
   if (isEven) {
-    return <div className='space space_dark'> {piece}</div>;
+    return <div data-position={`${x}-${y}`} className='space space_dark'> {piece}</div>;
   }
-  return <div className='space space_light'> {piece} </div>;
+  return <div data-position={`${x}-${y}`} className='space space_light'> {piece} </div>;
 };
 
 export function createSpace(
