@@ -346,11 +346,9 @@ class Referee {
     return false;
   }
 
-  isCheck(ourTeam: TeamTypes) {
-    const chessboard = this.chessboardRef.current;
+  isCheck(ourTeam: TeamTypes, board: JSX.Element[] = this.boardState[0]) {
     const [store, setStore] = this.stateStore;
     const storePiecesWithCheck = store[1];
-    const [board] = this.boardState;
     const kingSpace = board.find((space) => {
       if (space.props.piece) {
         const { type, team } = space.props.piece.props;
@@ -374,11 +372,6 @@ class Referee {
             setStore(store);
             return true;
           }
-          const [checkSpaces, setCheckSpaces] = this.checkSpaces;
-          const validSpace = chessboard?.querySelector(`[data-position="${checkSpaces.pop()}"]`);
-          validSpace?.classList.remove('space_valid-check');
-
-          setCheckSpaces(checkSpaces);
         }
 
         return false;

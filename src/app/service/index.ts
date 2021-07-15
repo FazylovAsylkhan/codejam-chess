@@ -114,6 +114,7 @@ class ChessboardService {
   }
 
   dropPiece(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
+    const [board, setBoardState] = this.boardState;
     const [store, setStore] = this.stateStore;
     const storePiecesWithCasteling = store[0];
     const [grabPosition] = this.stateGrabPosition;
@@ -137,9 +138,12 @@ class ChessboardService {
           desiredPosition: this.desiredPosition,
           currentPiece,
         };
-        const typeAction = this.referee.getTypeAction(actionProps);
 
-        if (typeAction !== ActionTypes.NOT_VALID) {
+        const typeAction = this.referee.getTypeAction(actionProps);
+        const updatedBoard = this.getUpdateBoardState(board, typeAction);
+        const isUnderCheck = !this.referee.isCheck(currentPiece.props.team, updatedBoard);
+
+        if (typeAction !== ActionTypes.NOT_VALID && isUnderCheck) {
           const { type, position } = currentPiece.props;
           const { ROOK, KING } = PieceTypes;
           if (type === ROOK || type === KING) {
@@ -151,20 +155,20 @@ class ChessboardService {
               setStore(store);
             }
           }
-          this.updateBoardState(typeAction);
+          setBoardState(updatedBoard);
           setOrder(newOrder);
+          this.resetCheck();
         }
         this.resetEffects();
       }
     }
   }
 
-  updateBoardState(specialAction: ActionTypes) {
+  getUpdateBoardState(board: JSX.Element[], specialAction: ActionTypes) {
     const [store] = this.stateStore;
     const storePiecesWithCasteling = store[0];
     const [grabPosition] = this.stateGrabPosition;
     const [currentPiece] = this.stateCurrentPiece;
-    const [board, setBoard] = this.boardState;
     const updatedBoardState = [] as JSX.Element[];
 
     board.forEach((space) => {
@@ -242,7 +246,7 @@ class ChessboardService {
       }
     });
 
-    setBoard(updatedBoardState);
+    return updatedBoardState;
   }
 
   getBoardState() {
@@ -345,6 +349,17 @@ class ChessboardService {
       }
     });
     window.console.log(storePiecesWithCheck);
+  }
+
+  resetCheck() {
+    const chessboard = this.chessboardRef.current;
+    const [checkSpaces, setCheckSpaces] = this.checkSpaces;
+    if (checkSpaces.length !== 0) {
+      const validSpace = chessboard?.querySelector(`[data-position="${checkSpaces.pop()}"]`);
+      validSpace?.classList.remove('space_valid-check');
+
+      setCheckSpaces(checkSpaces);
+    }
   }
 }
 
