@@ -12,12 +12,6 @@ export enum TeamTypes {
   LIGHT,
 }
 
-export enum ActionTypes {
-  NOT_VALID,
-  DEFAULT,
-  EN_PASSANT,
-}
-
 export interface Position {
   x: number;
   y: number;

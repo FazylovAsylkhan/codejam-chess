@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { InitialPropsPiece } from '../../../../config/constants';
 import { PieceTypes, Position, TeamTypes } from '../../../../types/piece';
 import './index.scss';
 
@@ -7,6 +8,7 @@ interface PieceProps {
   team: number;
   position: Position;
   enPassant?: boolean;
+  casteling?: boolean;
 }
 
 export const Piece: FC<PieceProps> = (props) => {
@@ -33,10 +35,23 @@ export const Piece: FC<PieceProps> = (props) => {
   }
 };
 
-export function createPiece(
-  position: Position, type: number,
-  team: number, enPassant: boolean = false,
-) {
+export function createPiece(props: PieceProps) {
+  const {
+    position, type, team, enPassant, casteling,
+  } = props;
   return <Piece enPassant={enPassant}
-      position={position} type={type} team={team} />;
+      position={position} type={type} team={team} casteling={casteling} />;
+}
+
+export function getInitialStatePieces() {
+  const state: JSX.Element[] = [];
+  InitialPropsPiece.forEach((piece) => {
+    const type = piece[0] as PieceTypes;
+    const position = piece[1] as Position;
+    const team = piece[2] as TeamTypes;
+    state.push(<Piece position={position} type={type} team={team}
+      casteling={true} />);
+  });
+
+  return state;
 }
