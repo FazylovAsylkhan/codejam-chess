@@ -26,6 +26,11 @@ export type StateValidSpaces = [
   React.Dispatch<React.SetStateAction<string[]>>,
 ];
 
+export type StateCheckSpaces = [
+  string[],
+  React.Dispatch<React.SetStateAction<string[]>>,
+];
+
 export type StateStore = [
   Array<JSX.Element[]>,
   React.Dispatch<React.SetStateAction<Array<JSX.Element[]>>>,

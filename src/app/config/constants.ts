@@ -15,6 +15,8 @@ export const pieceTypes = [ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, RO
 
 export const CLASS_INITIAL_SPACE = 'space_initial';
 export const CLASS_VALID_SPACE = 'space_valid';
+export const CLASS_INITIAL_SPACE_CHECK = 'space_initial-check';
+export const CLASS_VALID_SPACE_CHECK = 'space_valid-check';
 export const InitialPropsPiece = [
   [ROOK, { x: 0, y: 0 }, LIGHT],
   [ROOK, { x: 7, y: 0 }, LIGHT],

@@ -14,7 +14,9 @@ const GamePage: FC = () => {
   return (
         <div>
             <Header />
-            <Chessboard initialBoardState={getInitialBoardState()} store={store} />
+            <Chessboard
+            initialBoardState={getInitialBoardState()}
+            store={store} />
             <Footer />
         </div>
   );

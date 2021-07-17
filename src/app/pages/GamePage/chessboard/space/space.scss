@@ -9,15 +9,13 @@
   &_dark {
     background-color: #85cdca;
   }
-  &_initial {
+  &_initial,
+  &_initial-check {
     background: #f5aa94;
     border: 3px solid #E27D5F;
   }
-  &_valid {
-    border: 3px solid #E27D5F;
-  }
+  &_valid,
   &_valid-check {
-    background: #E27D5F;
     border: 3px solid #E27D5F;
   }
 }

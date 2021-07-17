@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import {
-  CLASS_INITIAL_SPACE, CLASS_VALID_SPACE, GRID_SIZE, HIGHT_OF_CHESSBOARD,
+  CLASS_INITIAL_SPACE, CLASS_INITIAL_SPACE_CHECK,
+  CLASS_VALID_SPACE, CLASS_VALID_SPACE_CHECK, GRID_SIZE, HIGHT_OF_CHESSBOARD,
 } from '../config/constants';
 import { createPiece } from '../pages/GamePage/chessboard/piece';
 import { createSpace } from '../pages/GamePage/chessboard/space/Space';
 import {
   ActivePieceState, BoardState, ChessboardRef,
+  StateCheckSpaces,
   StateCurrentPiece, StateGrabPosition, StateOrder, StateStore, StateValidSpaces,
 } from '../types/chessboard';
 import { PieceTypes, Position, TeamTypes } from '../types/piece';
 import { ActionTypes } from '../types/referee';
 import Referee from './referee';
-import { getValidedValue, isSamePosition } from './utils';
+import { getPositionKing, getValidedValue, isSamePosition } from './utils';
 
 class ChessboardService {
   activePieceState: ActivePieceState;
@@ -34,10 +36,11 @@ class ChessboardService {
 
   stateStore: StateStore;
 
-  checkSpaces: StateValidSpaces;
+  stateCheckSpaces: StateCheckSpaces;
 
   constructor(
-    chessboardRef: ChessboardRef, initialBoardState: JSX.Element[], store: Array<JSX.Element[]>,
+    chessboardRef: ChessboardRef, initialBoardState: JSX.Element[],
+    store: Array<JSX.Element[]>,
   ) {
     this.activePieceState = useState<HTMLElement | null>(null);
     this.chessboardRef = chessboardRef;
@@ -47,9 +50,9 @@ class ChessboardService {
     this.stateGrabPosition = useState<Position>({ x: -1, y: -1 });
     this.stateCurrentPiece = useState<JSX.Element | undefined>(undefined);
     this.stateStore = useState<Array<JSX.Element[]>>(store);
-    this.checkSpaces = useState<string[]>([]);
+    this.stateCheckSpaces = useState<string[]>([]);
     this.referee = new Referee(
-      this.boardState, this.stateStore, this.checkSpaces, this.chessboardRef,
+      this.boardState, this.stateStore, this.chessboardRef,
     );
   }
 
@@ -122,7 +125,6 @@ class ChessboardService {
     const chessboard = this.chessboardRef.current;
     const [currentPiece] = this.stateCurrentPiece;
     const [order, setOrder] = this.stateOrder;
-    const newOrder = order === TeamTypes.LIGHT ? TeamTypes.DARK : TeamTypes.LIGHT;
 
     if (activePiece && chessboard) {
       this.desiredPosition = {
@@ -141,9 +143,17 @@ class ChessboardService {
 
         const typeAction = this.referee.getTypeAction(actionProps);
         const updatedBoard = this.getUpdateBoardState(board, typeAction);
-        const isUnderCheck = !this.referee.isCheck(currentPiece.props.team, updatedBoard);
+        const ourTeam = order === TeamTypes.DARK
+          ? TeamTypes.DARK : TeamTypes.LIGHT;
+        const opponentTeam = order === TeamTypes.DARK
+          ? TeamTypes.LIGHT : TeamTypes.DARK;
+        const newPositionKing: Position = getPositionKing(updatedBoard, ourTeam);
+        const isOurTeamUnderCheck = this.referee.isCheck(
+          updatedBoard, ourTeam, newPositionKing,
+        );
 
-        if (typeAction !== ActionTypes.NOT_VALID && isUnderCheck) {
+        if (typeAction !== ActionTypes.NOT_VALID
+          && !isOurTeamUnderCheck) {
           const { type, position } = currentPiece.props;
           const { ROOK, KING } = PieceTypes;
           if (type === ROOK || type === KING) {
@@ -156,8 +166,9 @@ class ChessboardService {
             }
           }
           setBoardState(updatedBoard);
-          setOrder(newOrder);
+          setOrder(opponentTeam);
           this.resetCheck();
+          this.stateCheckSpaces[1]([]);
         }
         this.resetEffects();
       }
@@ -249,13 +260,9 @@ class ChessboardService {
     return updatedBoardState;
   }
 
-  getBoardState() {
-    return this.boardState[0];
-  }
-
   resetEffects() {
-    const [activePiece, setActivePiece] = this.activePieceState;
     const chessboard = this.chessboardRef.current;
+    const [activePiece, setActivePiece] = this.activePieceState;
     const [validSpaces, setValidSpaces] = this.validSpaces;
 
     if (activePiece) {
@@ -265,13 +272,23 @@ class ChessboardService {
       activePiece.parentElement?.classList.remove(CLASS_INITIAL_SPACE);
     }
 
-    validSpaces.forEach((value) => {
-      const s = chessboard?.querySelector(`[data-position="${value}"]`);
+    validSpaces.forEach((position) => {
+      const s = chessboard?.querySelector(`[data-position="${position}"]`);
       s?.classList.remove(CLASS_VALID_SPACE);
     });
 
     setValidSpaces([]);
     setActivePiece(null);
+  }
+
+  resetCheck() {
+    const [checkSpaces] = this.stateCheckSpaces;
+    const chessboard = this.chessboardRef.current;
+    checkSpaces.forEach((value) => {
+      const s = chessboard?.querySelector(`[data-position="${value}"]`);
+      s?.classList.remove(CLASS_VALID_SPACE_CHECK);
+      s?.classList.remove(CLASS_INITIAL_SPACE_CHECK);
+    });
   }
 
   showValidMove(currentPiece: JSX.Element, grabPosition: Position) {
@@ -321,45 +338,25 @@ class ChessboardService {
     };
   }
 
-  showCheck() {
+  showCheckSteps() {
     const [board] = this.boardState;
-    const [store] = this.stateStore;
-    const [checkSpaces] = this.checkSpaces;
-    const storePiecesWithCheck = store[1];
     const chessboard = this.chessboardRef.current;
-    const currentPiece = storePiecesWithCheck.pop();
-    const { position } = currentPiece?.props;
-    board.forEach((s) => {
-      if (currentPiece) {
-        const actionProps = {
-          initialPosition: position,
-          desiredPosition: s.props.positionSpace,
-          currentPiece,
-        };
-        if (this.referee.isDefaultMove(actionProps)) {
-          if (s.props.piece) {
-            if (s.props.piece.props.type === PieceTypes.KING) {
-              const { x, y } = s.props.positionSpace;
-              const validSpace = chessboard?.querySelector(`[data-position="${x}-${y}"]`);
-              validSpace?.classList.add('space_valid-check');
-              checkSpaces.push(`${x}-${y}`);
-            }
-          }
-        }
+    const currentTeam = this.stateOrder[0];
+    const kingPosition = getPositionKing(board, currentTeam);
+    const { checkSpaces } = this.referee;
+    const setCheckSpaces = this.stateCheckSpaces[1];
+    setCheckSpaces(checkSpaces);
+
+    checkSpaces.forEach((position) => {
+      const kingPositionInString = `${kingPosition.x}-${kingPosition.y}`;
+      if (kingPositionInString === position) {
+        const s = chessboard?.querySelector(`[data-position="${position}"]`);
+        s?.classList.add(CLASS_INITIAL_SPACE_CHECK);
+      } else {
+        const s = chessboard?.querySelector(`[data-position="${position}"]`);
+        s?.classList.add(CLASS_VALID_SPACE_CHECK);
       }
     });
-    window.console.log(storePiecesWithCheck);
-  }
-
-  resetCheck() {
-    const chessboard = this.chessboardRef.current;
-    const [checkSpaces, setCheckSpaces] = this.checkSpaces;
-    if (checkSpaces.length !== 0) {
-      const validSpace = chessboard?.querySelector(`[data-position="${checkSpaces.pop()}"]`);
-      validSpace?.classList.remove('space_valid-check');
-
-      setCheckSpaces(checkSpaces);
-    }
   }
 }
 
