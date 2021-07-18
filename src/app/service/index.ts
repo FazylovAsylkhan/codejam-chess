@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import {
   CLASS_INITIAL_SPACE, CLASS_INITIAL_SPACE_CHECK,
-  CLASS_VALID_SPACE, CLASS_VALID_SPACE_CHECK, GRID_SIZE, HIGHT_OF_CHESSBOARD,
+  CLASS_INITIAL_SPACE_CHECKMATE,
+  CLASS_VALID_SPACE, CLASS_VALID_SPACE_CHECK,
+  CLASS_VALID_SPACE_CHECKMATE, GRID_SIZE, HIGHT_OF_CHESSBOARD,
 } from '../config/constants';
-import { createPiece } from '../pages/GamePage/chessboard/piece';
-import { createSpace } from '../pages/GamePage/chessboard/space/Space';
 import {
   ActivePieceState, BoardState, ChessboardRef,
   StateCheckSpaces,
@@ -13,7 +13,9 @@ import {
 import { PieceTypes, Position, TeamTypes } from '../types/piece';
 import { ActionTypes } from '../types/referee';
 import Referee from './referee';
-import { getPositionKing, getValidedValue, isSamePosition } from './utils';
+import {
+  getPositionKing, getUpdateBoardState, getValidedValue, isSamePosition,
+} from './utils';
 
 class ChessboardService {
   activePieceState: ActivePieceState;
@@ -118,13 +120,14 @@ class ChessboardService {
 
   dropPiece(e: React.MouseEvent<HTMLDivElement, MouseEvent>) {
     const [board, setBoardState] = this.boardState;
-    const [store, setStore] = this.stateStore;
-    const storePiecesWithCasteling = store[0];
     const [grabPosition] = this.stateGrabPosition;
     const [activePiece] = this.activePieceState;
     const chessboard = this.chessboardRef.current;
     const [currentPiece] = this.stateCurrentPiece;
     const [order, setOrder] = this.stateOrder;
+    const { DARK, LIGHT } = TeamTypes;
+    const ourTeam = order === DARK ? DARK : LIGHT;
+    const opponentTeam = order === DARK ? LIGHT : DARK;
 
     if (activePiece && chessboard) {
       this.desiredPosition = {
@@ -140,124 +143,31 @@ class ChessboardService {
           desiredPosition: this.desiredPosition,
           currentPiece,
         };
-
         const typeAction = this.referee.getTypeAction(actionProps);
-        const updatedBoard = this.getUpdateBoardState(board, typeAction);
-        const ourTeam = order === TeamTypes.DARK
-          ? TeamTypes.DARK : TeamTypes.LIGHT;
-        const opponentTeam = order === TeamTypes.DARK
-          ? TeamTypes.LIGHT : TeamTypes.DARK;
-        const newPositionKing: Position = getPositionKing(updatedBoard, ourTeam);
+        const storePiecesWithCasteling = this.stateStore[0][0];
+        const UpdateProps = {
+          board,
+          action: typeAction,
+          initialPosition: grabPosition,
+          desiredPosition: this.desiredPosition,
+          currentPiece,
+          storePiecesWithCasteling,
+        };
+        const updatedBoard = getUpdateBoardState(UpdateProps);
         const isOurTeamUnderCheck = this.referee.isCheck(
-          updatedBoard, ourTeam, newPositionKing,
+          updatedBoard, ourTeam,
         );
 
         if (typeAction !== ActionTypes.NOT_VALID
           && !isOurTeamUnderCheck) {
-          const { type, position } = currentPiece.props;
-          const { ROOK, KING } = PieceTypes;
-          if (type === ROOK || type === KING) {
-            const pieceIndex = storePiecesWithCasteling.findIndex((p) => isSamePosition(
-              p.props.position, position,
-            ));
-            if (pieceIndex !== -1) {
-              storePiecesWithCasteling.splice(pieceIndex, 1);
-              setStore(store);
-            }
-          }
+          this.updateStoreWithCastling();
           setBoardState(updatedBoard);
           setOrder(opponentTeam);
           this.resetCheck();
-          this.stateCheckSpaces[1]([]);
         }
         this.resetEffects();
       }
     }
-  }
-
-  getUpdateBoardState(board: JSX.Element[], specialAction: ActionTypes) {
-    const [store] = this.stateStore;
-    const storePiecesWithCasteling = store[0];
-    const [grabPosition] = this.stateGrabPosition;
-    const [currentPiece] = this.stateCurrentPiece;
-    const updatedBoardState = [] as JSX.Element[];
-
-    board.forEach((space) => {
-      const { key } = space;
-      const { positionSpace, number, piece } = space.props;
-      const direction = currentPiece?.props.team === TeamTypes.LIGHT ? 1 : -1;
-
-      const isInitialSpace = isSamePosition(positionSpace, grabPosition);
-      const isDesiredSpace = isSamePosition(positionSpace, this.desiredPosition);
-      let isInitialRook = false;
-      let isNEwRook = false;
-      if (specialAction === ActionTypes.CASTELING) {
-        const { isInitialPosition, isNEwPosition } = this.getCastlingProps(specialAction);
-        isInitialRook = isInitialPosition(positionSpace);
-        isNEwRook = isNEwPosition(positionSpace);
-      }
-
-      const attackedPosition = {
-        x: this.desiredPosition.x,
-        y: this.desiredPosition.y - 1 * direction,
-      };
-      const isAttackedPosition = specialAction === ActionTypes.EN_PASSANT
-      && isSamePosition(positionSpace, attackedPosition);
-
-      if (isAttackedPosition || isInitialSpace || isInitialRook) {
-        const newSpace = createSpace(positionSpace, null, key, number);
-
-        updatedBoardState.push(newSpace);
-      } else if (isNEwRook) {
-        const pieceProps = {
-          position: positionSpace,
-          type: PieceTypes.ROOK,
-          team: currentPiece?.props.team,
-        };
-        const newPiece = createPiece(pieceProps);
-        const newSpace = createSpace(positionSpace, newPiece, key, number);
-
-        updatedBoardState.push(newSpace);
-      } else if (isDesiredSpace) {
-        const initialSpace = board.find((s) => isSamePosition(s.props.positionSpace, grabPosition));
-        if (initialSpace) {
-          const { type, team } = initialSpace.props.piece.props;
-          const enPassantValue = Math.abs(grabPosition.y - this.desiredPosition.y) === 2;
-          const newPiece = type === PieceTypes.PAWN
-            ? createPiece({
-              position: positionSpace, type, team, enPassant: enPassantValue,
-            })
-            : createPiece({ position: positionSpace, type, team });
-          const newSpace = createSpace(positionSpace, newPiece, key, number);
-
-          updatedBoardState.push(newSpace);
-        }
-      } else if (piece) {
-        const { type, team, position } = piece.props;
-        let newPiece;
-        const specialPiece = type === PieceTypes.ROOK || type === PieceTypes.KING;
-        if (specialPiece) {
-          const hasPiece = (p: JSX.Element) => isSamePosition(p.props.position, position);
-          const castelingValue = Boolean(storePiecesWithCasteling.find((p) => hasPiece(p)));
-          const pieceProps = {
-            position: positionSpace,
-            type,
-            team,
-            casteling: castelingValue,
-          };
-          newPiece = createPiece(pieceProps);
-        } else {
-          newPiece = createPiece({ position: positionSpace, type, team });
-        }
-        const newSpace = createSpace(positionSpace, newPiece, key, number);
-
-        updatedBoardState.push(newSpace);
-      } else {
-        updatedBoardState.push(space);
-      }
-    });
-
-    return updatedBoardState;
   }
 
   resetEffects() {
@@ -289,6 +199,7 @@ class ChessboardService {
       s?.classList.remove(CLASS_VALID_SPACE_CHECK);
       s?.classList.remove(CLASS_INITIAL_SPACE_CHECK);
     });
+    this.stateCheckSpaces[1]([]);
   }
 
   showValidMove(currentPiece: JSX.Element, grabPosition: Position) {
@@ -316,29 +227,7 @@ class ChessboardService {
     SetValidSpaces(validSpaces);
   }
 
-  getCastlingProps(specialAction: ActionTypes) {
-    const [currentPiece] = this.stateCurrentPiece;
-    const specialRowOnCasteling = currentPiece?.props.team === TeamTypes.LIGHT ? 0 : 7;
-    const isRightCasteling = this.desiredPosition.x === 6;
-    const isLeftCasteling = this.desiredPosition.x === 2;
-    const initialPositionRookOnCasteling = isRightCasteling
-      ? { x: 7, y: specialRowOnCasteling }
-      : { x: 0, y: specialRowOnCasteling };
-    const newPositionRookOnCasteling = isRightCasteling
-      ? { x: 5, y: specialRowOnCasteling }
-      : { x: 3, y: specialRowOnCasteling };
-    const castlingDirection = isRightCasteling || isLeftCasteling;
-    return {
-      isInitialPosition: (position: Position) => specialAction === ActionTypes.CASTELING
-      && castlingDirection
-      && isSamePosition(position, initialPositionRookOnCasteling),
-      isNEwPosition: (position: Position) => ActionTypes.CASTELING
-      && castlingDirection
-      && isSamePosition(position, newPositionRookOnCasteling),
-    };
-  }
-
-  showCheckSteps() {
+  showCheckSteps(isCheckmate = false) {
     const [board] = this.boardState;
     const chessboard = this.chessboardRef.current;
     const currentTeam = this.stateOrder[0];
@@ -349,7 +238,15 @@ class ChessboardService {
 
     checkSpaces.forEach((position) => {
       const kingPositionInString = `${kingPosition.x}-${kingPosition.y}`;
-      if (kingPositionInString === position) {
+      if (isCheckmate) {
+        if (kingPositionInString === position) {
+          const s = chessboard?.querySelector(`[data-position="${position}"]`);
+          s?.classList.add(CLASS_INITIAL_SPACE_CHECKMATE);
+        } else {
+          const s = chessboard?.querySelector(`[data-position="${position}"]`);
+          s?.classList.add(CLASS_VALID_SPACE_CHECKMATE);
+        }
+      } else if (kingPositionInString === position) {
         const s = chessboard?.querySelector(`[data-position="${position}"]`);
         s?.classList.add(CLASS_INITIAL_SPACE_CHECK);
       } else {
@@ -357,6 +254,23 @@ class ChessboardService {
         s?.classList.add(CLASS_VALID_SPACE_CHECK);
       }
     });
+  }
+
+  updateStoreWithCastling() {
+    const [store, setStore] = this.stateStore;
+    const storePiecesWithCasteling = store[0];
+    const [currentPiece] = this.stateCurrentPiece;
+    const { type, position } = currentPiece?.props;
+    const { ROOK, KING } = PieceTypes;
+    if (type === ROOK || type === KING) {
+      const pieceIndex = storePiecesWithCasteling.findIndex((p) => isSamePosition(
+        p.props.position, position,
+      ));
+      if (pieceIndex !== -1) {
+        storePiecesWithCasteling.splice(pieceIndex, 1);
+        setStore(store);
+      }
+    }
   }
 }
 

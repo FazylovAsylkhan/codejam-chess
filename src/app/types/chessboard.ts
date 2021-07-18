@@ -1,4 +1,5 @@
 import { Position, TeamTypes } from './piece';
+import { ActionTypes } from './referee';
 
 export type ChessboardRef = React.RefObject<HTMLDivElement>;
 export type ActivePieceState = [
@@ -35,3 +36,12 @@ export type StateStore = [
   Array<JSX.Element[]>,
   React.Dispatch<React.SetStateAction<Array<JSX.Element[]>>>,
 ];
+
+export interface UpdateBoardState {
+  board: JSX.Element[],
+  action: ActionTypes,
+  initialPosition:Position,
+  desiredPosition: Position,
+  currentPiece: JSX.Element,
+  storePiecesWithCasteling: JSX.Element[]
+}

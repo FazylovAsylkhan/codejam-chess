@@ -1,9 +1,12 @@
 import {
   BoardState, ChessboardRef, StateStore,
 } from '../types/chessboard';
-import { PieceTypes, Position, TeamTypes } from '../types/piece';
+import { PieceTypes, TeamTypes } from '../types/piece';
 import { ActionProps, ActionTypes } from '../types/referee';
-import { isSamePosition, isSpaceOccupied, isSpaceOccupiedByOpponent } from './utils';
+import {
+  getBishopProps, getPawnProps, getPositionKing, getRookProps,
+  isSamePosition, isSpaceOccupied, isSpaceOccupiedByOpponent, isValidSpace,
+} from './utils';
 
 class Referee {
   boardState: BoardState;
@@ -88,15 +91,17 @@ class Referee {
     return false;
   }
 
-  isCasteling(props: ActionProps) {
+  isCasteling(props: ActionProps): boolean {
     const [board] = this.boardState;
     const [store] = this.stateStore;
-    const { type } = props.currentPiece.props;
+    const { initialPosition, desiredPosition, currentPiece } = props;
+    const { type, team } = currentPiece.props;
+    const hasCheck = this.isCheck(board, team);
+
     if (type === PieceTypes.KING) {
-      const { initialPosition, desiredPosition, currentPiece } = props;
       const DPX = desiredPosition.x; const DPY = desiredPosition.y;
       const IPY = initialPosition.y;
-      const specialRow = currentPiece.props.team === TeamTypes.LIGHT ? 0 : 7;
+      const specialRow = team === TeamTypes.LIGHT ? 0 : 7;
       const isSpecialRow = IPY === specialRow && DPY === specialRow;
       const positionSpace1 = { x: DPX, y: DPY };
       const positionSpace2 = { x: DPX - 1, y: DPY };
@@ -106,12 +111,12 @@ class Referee {
       const isRight = DPX === 6;
       const isLeft = DPX === 2;
 
-      if (isSpecialRow && isEmptyWay) {
+      if (isSpecialRow && isEmptyWay && !hasCheck) {
         const isChopedSpace = board.find((space) => {
           const { piece } = space.props;
           if (piece) {
-            const { team, position } = piece.props;
-            const isOpponent = currentPiece.props.team !== team;
+            const { position } = piece.props;
+            const isOpponent = team !== piece.props.team;
             if (isOpponent) {
               const space1 = {
                 currentPiece: piece,
@@ -160,89 +165,172 @@ class Referee {
     return false;
   }
 
-  isCheck(board: JSX.Element[], currentTeam: TeamTypes, ourKingPosition: Position): boolean {
+  isCheck(board: JSX.Element[], currentTeam: TeamTypes): boolean {
     const arrOpponentPieces: JSX.Element[] = [];
+    const ourKingPosition = getPositionKing(board, currentTeam);
     let checkSpaces: string[] = [];
     let isCheckValue = false;
     let isEmptyWay = true;
+
     board.forEach((space) => {
+      const validSpaces = [];
       const { positionSpace, piece } = space.props;
-      if (piece
-        && piece.props.team === currentTeam && piece.props.type === PieceTypes.KING) {
-        checkSpaces.push(`${positionSpace.x}-${positionSpace.y}`);
-      } else if (space.props.piece && space.props.piece.props.team !== currentTeam) {
-        const opponentPosition = space.props.piece.props.position;
-        const actionProps = {
-          initialPosition: opponentPosition,
-          desiredPosition: ourKingPosition,
-          currentPiece: space.props.piece,
-        };
-        if (space.props.piece.props.type === PieceTypes.BISHOP
-          && this.isBishopValidMove(actionProps)) {
-          const IPX = opponentPosition.x; const IPY = opponentPosition.y;
-          const DPX = ourKingPosition.x; const DPY = ourKingPosition.y;
-          const isEquilMoveByDioganal = Math.abs(DPX - IPX) === Math.abs(DPY - IPY);
+      const {
+        KING, BISHOP, ROOK, PAWN, QUEEN,
+      } = PieceTypes;
 
-          if (isEquilMoveByDioganal) {
-            const maxValue = Math.abs(DPX - IPX);
-            const directionByX = DPX - IPX > 0 ? 1 : -1;
-            const directionByY = DPY - IPY > 0 ? 1 : -1;
-            const stepByX = IPX * directionByX;
-            const stepByY = IPY * directionByY;
-            const validSpaces = [];
+      if (piece) {
+        const { team, type } = piece.props;
 
-            for (let i = 1; i < maxValue; i += 1) {
-              const position = {
-                x: Math.abs(stepByX + i),
-                y: Math.abs(stepByY + i),
-              };
-              validSpaces.push(`${position.x}-${position.y}`);
-              if (isSpaceOccupied(board, position)) isEmptyWay = false;
+        if (team === currentTeam && type === KING) {
+          checkSpaces.push(`${positionSpace.x}-${positionSpace.y}`);
+        } else if (team !== currentTeam) {
+          const opponentPosition = positionSpace;
+          const actionProps = {
+            initialPosition: opponentPosition,
+            desiredPosition: ourKingPosition,
+            currentPiece: piece,
+          };
+
+          switch (type) {
+            case BISHOP: {
+              const bishopProps = getBishopProps(opponentPosition, ourKingPosition);
+              const {
+                isEquilMoveByDioganal, maxValue, stepByX, stepByY,
+              } = bishopProps;
+
+              if (isEquilMoveByDioganal) {
+                for (let i = 1; i < maxValue; i += 1) {
+                  const position = {
+                    x: Math.abs(stepByX + i),
+                    y: Math.abs(stepByY + i),
+                  };
+
+                  validSpaces.push(`${position.x}-${position.y}`);
+
+                  if (isSpaceOccupied(board, position)) isEmptyWay = false;
+                }
+
+                if (isEmptyWay) {
+                  isCheckValue = true;
+                  checkSpaces = [...checkSpaces, ...validSpaces];
+                  arrOpponentPieces.push(piece);
+                }
+              }
+              break;
             }
-            if (isEmptyWay) {
-              isCheckValue = true;
-              checkSpaces = [...checkSpaces, ...validSpaces];
-              arrOpponentPieces.push(space.props.piece);
-            }
-          }
-        } else if (space.props.piece.props.type === PieceTypes.ROOK
-          && this.isRookValidMove(actionProps)) {
-          const DPX = ourKingPosition.x; const DPY = ourKingPosition.y;
-          const IPX = opponentPosition.x; const IPY = opponentPosition.y;
-          const isStepsByY = IPX === DPX;
-          const isStepsByX = IPY === DPY;
-          const validSpaces = [];
+            case ROOK: {
+              const rookProps = getRookProps(opponentPosition, ourKingPosition);
+              const {
+                DPX, DPY, isValidMove,
+                isStepsByY, isStepsByX, startWay, endWay,
+              } = rookProps;
 
-          if (isStepsByY || isStepsByX) {
-            let start;
-            let end;
-            if (isStepsByY) {
-              start = DPY - IPY > 0 ? IPY + 1 : DPY + 1;
-              end = DPY - IPY > 0 ? DPY - 1 : IPY - 1;
-              for (let i = start; i <= end; i += 1) {
-                const position = { x: DPX, y: i };
-                if (isSpaceOccupied(board, position)) isEmptyWay = false;
-                validSpaces.push(`${position.x}-${position.y}`);
+              if (isValidMove) {
+                if (isStepsByY) {
+                  for (let i = startWay; i <= endWay; i += 1) {
+                    const position = { x: DPX, y: i };
+
+                    if (isSpaceOccupied(board, position)) isEmptyWay = false;
+
+                    validSpaces.push(`${position.x}-${position.y}`);
+                  }
+                }
+
+                if (isStepsByX) {
+                  for (let i = startWay; i <= endWay; i += 1) {
+                    const position = { x: i, y: DPY };
+
+                    if (isSpaceOccupied(board, position)) isEmptyWay = false;
+
+                    validSpaces.push(`${position.x}-${position.y}`);
+                  }
+                }
+                if (isEmptyWay) {
+                  isCheckValue = true;
+                  checkSpaces = [...checkSpaces, ...validSpaces];
+                  arrOpponentPieces.push(space.props.piece);
+                }
+              }
+              break;
+            }
+            case PAWN: {
+              const pawnProps = getPawnProps(piece, opponentPosition, ourKingPosition);
+              const { isOneStep, isStepByX } = pawnProps;
+              const attack = isStepByX
+            && isOneStep && isSpaceOccupiedByOpponent(board, team, ourKingPosition);
+
+              if (attack) {
+                isCheckValue = true;
+                arrOpponentPieces.push(piece);
+              }
+              break;
+            }
+            case QUEEN: {
+              const bishopProps = getBishopProps(opponentPosition, ourKingPosition);
+              const {
+                isEquilMoveByDioganal, maxValue, stepByX, stepByY,
+              } = bishopProps;
+
+              if (isEquilMoveByDioganal) {
+                for (let i = 1; i < maxValue; i += 1) {
+                  const position = {
+                    x: Math.abs(stepByX + i),
+                    y: Math.abs(stepByY + i),
+                  };
+
+                  validSpaces.push(`${position.x}-${position.y}`);
+
+                  if (isSpaceOccupied(board, position)) isEmptyWay = false;
+                }
+
+                if (isEmptyWay) {
+                  isCheckValue = true;
+                  checkSpaces = [...checkSpaces, ...validSpaces];
+                  arrOpponentPieces.push(piece);
+                }
+              }
+
+              const rookProps = getRookProps(opponentPosition, ourKingPosition);
+              const {
+                DPX, DPY, isValidMove,
+                isStepsByY, isStepsByX, startWay, endWay,
+              } = rookProps;
+
+              if (isValidMove) {
+                if (isStepsByY) {
+                  for (let i = startWay; i <= endWay; i += 1) {
+                    const position = { x: DPX, y: i };
+
+                    if (isSpaceOccupied(board, position)) isEmptyWay = false;
+
+                    validSpaces.push(`${position.x}-${position.y}`);
+                  }
+                }
+                if (isStepsByX) {
+                  for (let i = startWay; i <= endWay; i += 1) {
+                    const position = { x: i, y: DPY };
+
+                    if (isSpaceOccupied(board, position)) isEmptyWay = false;
+
+                    validSpaces.push(`${position.x}-${position.y}`);
+                  }
+                }
+                if (isEmptyWay) {
+                  isCheckValue = true;
+                  checkSpaces = [...checkSpaces, ...validSpaces];
+                  arrOpponentPieces.push(space.props.piece);
+                }
+              }
+              break;
+            }
+            default: {
+              if (this.isDefaultMove(actionProps)) {
+                isCheckValue = true;
+                arrOpponentPieces.push(piece);
               }
             }
-            if (isStepsByX) {
-              start = DPX - IPX > 0 ? IPX + 1 : DPX + 1;
-              end = DPX - IPX > 0 ? DPX - 1 : IPX - 1;
-              for (let i = start; i <= end; i += 1) {
-                const position = { x: i, y: DPY };
-                if (isSpaceOccupied(board, position)) isEmptyWay = false;
-                validSpaces.push(`${position.x}-${position.y}`);
-              }
-            }
-            if (isEmptyWay) {
-              isCheckValue = true;
-              checkSpaces = [...checkSpaces, ...validSpaces];
-              arrOpponentPieces.push(space.props.piece);
-            }
           }
-        } else if (this.isDefaultMove(actionProps)) {
-          isCheckValue = true;
-          arrOpponentPieces.push(space.props.piece);
         }
       }
     });
@@ -254,20 +342,14 @@ class Referee {
   isPawnValidMove(props: ActionProps): boolean {
     const [board] = this.boardState;
     const { initialPosition, desiredPosition, currentPiece } = props;
-    const DPX = desiredPosition.x; const DPY = desiredPosition.y;
-    const IPX = initialPosition.x; const IPY = initialPosition.y;
+    const pawnProps = getPawnProps(currentPiece, initialPosition, desiredPosition);
+    const {
+      DPX, DPY, isOneStep, isTwoSteps,
+      isStepByX, isStepByY, isSpecialRow, direction,
+    } = pawnProps;
     const { team } = currentPiece.props;
 
-    const direction = team === TeamTypes.LIGHT ? 1 : -1;
-    const specialRow = team === TeamTypes.LIGHT ? 1 : 6;
-    const isOneStep = DPY - IPY === 1 * direction;
-    const isTwoSteps = DPY - IPY === 2 * direction;
-
-    const isStepByX = Math.abs(DPX - IPX) === 1;
-    const isStepByY = IPX === DPX;
-    const isSpecialRow = IPY === specialRow;
     const isEmptySpace = !isSpaceOccupied(board, desiredPosition);
-
     const position = { x: DPX, y: DPY - 1 * direction };
     const isEmptyWay = isEmptySpace && !isSpaceOccupied(board, position);
 
@@ -284,41 +366,27 @@ class Referee {
   isRookValidMove(props: ActionProps): boolean {
     const [board] = this.boardState;
     const { initialPosition, desiredPosition, currentPiece } = props;
-    const DPX = desiredPosition.x; const DPY = desiredPosition.y;
-    const IPX = initialPosition.x; const IPY = initialPosition.y;
-    const { team } = currentPiece.props;
-
-    const isEmptySpace = !isSpaceOccupied(board, desiredPosition);
-    const isStepsByY = IPX === DPX;
-    const isStepsByX = IPY === DPY;
-
-    if (isStepsByY || isStepsByX) {
-      let start;
-      let end;
-      let isEmptyWay = true;
-      if (isStepsByY) {
-        start = DPY - IPY > 0 ? IPY + 1 : DPY + 1;
-        end = DPY - IPY > 0 ? DPY - 1 : IPY - 1;
-        for (let i = start; i <= end; i += 1) {
-          const position = { x: DPX, y: i };
-          if (isSpaceOccupied(board, position)) isEmptyWay = false;
-        }
-      }
-      if (isStepsByX) {
-        start = DPX - IPX > 0 ? IPX + 1 : DPX + 1;
-        end = DPX - IPX > 0 ? DPX - 1 : IPX - 1;
-        for (let i = start; i <= end; i += 1) {
-          const position = { x: i, y: DPY };
-          if (isSpaceOccupied(board, position)) isEmptyWay = false;
-        }
-      }
-
-      if (isEmptySpace || isSpaceOccupiedByOpponent(board, team, desiredPosition)) {
-        if (isEmptyWay) {
-          return true;
-        }
+    const rookProps = getRookProps(initialPosition, desiredPosition);
+    const {
+      DPX, DPY, isValidMove,
+      isStepsByY, isStepsByX, startWay, endWay,
+    } = rookProps;
+    const isValidedSpace = isValidSpace(board, currentPiece, desiredPosition);
+    let isEmptyWay = true;
+    if (isStepsByY) {
+      for (let i = startWay; i <= endWay; i += 1) {
+        const position = { x: DPX, y: i };
+        if (isSpaceOccupied(board, position)) isEmptyWay = false;
       }
     }
+    if (isStepsByX) {
+      for (let i = startWay; i <= endWay; i += 1) {
+        const position = { x: i, y: DPY };
+        if (isSpaceOccupied(board, position)) isEmptyWay = false;
+      }
+    }
+
+    if (isValidedSpace && isEmptyWay && isValidMove) return true;
 
     return false;
   }
@@ -351,25 +419,17 @@ class Referee {
   isBishopValidMove(props: ActionProps): boolean {
     const [board] = this.boardState;
     const { initialPosition, desiredPosition, currentPiece } = props;
-    const DPX = desiredPosition.x; const DPY = desiredPosition.y;
-    const IPX = initialPosition.x; const IPY = initialPosition.y;
     const { team } = currentPiece.props;
-
+    const bishopProps = getBishopProps(initialPosition, desiredPosition);
     const isEmptySpace = !isSpaceOccupied(board, desiredPosition);
-    const isEquilMoveByDioganal = Math.abs(DPX - IPX) === Math.abs(DPY - IPY);
     const areValidSpaces = isEmptySpace || isSpaceOccupiedByOpponent(board, team, desiredPosition);
 
-    if (isEquilMoveByDioganal) {
-      const maxValue = Math.abs(DPX - IPX);
-      const directionByX = DPX - IPX > 0 ? 1 : -1;
-      const directionByY = DPY - IPY > 0 ? 1 : -1;
-      const stepByX = IPX * directionByX;
-      const stepByY = IPY * directionByY;
+    if (bishopProps.isEquilMoveByDioganal) {
       let isEmptyWay = true;
-      for (let i = 1; i < maxValue; i += 1) {
+      for (let i = 1; i < bishopProps.maxValue; i += 1) {
         const position = {
-          x: Math.abs(stepByX + i),
-          y: Math.abs(stepByY + i),
+          x: Math.abs(bishopProps.stepByX + i),
+          y: Math.abs(bishopProps.stepByY + i),
         };
         if (isSpaceOccupied(board, position)) isEmptyWay = false;
       }
