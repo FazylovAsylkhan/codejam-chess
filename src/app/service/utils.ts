@@ -186,8 +186,10 @@ export function getUpdateBoardState(props: UpdateBoardState): JSX.Element[] {
     initialPosition, desiredPosition,
     currentPiece, storePiecesWithCasteling,
   } = props;
-  const { CASTELING, EN_PASSANT } = ActionTypes;
-  const { ROOK, PAWN, KING } = PieceTypes;
+  const { CASTELING, EN_PASSANT, PROMOTION } = ActionTypes;
+  const {
+    ROOK, PAWN, KING, QUEEN,
+  } = PieceTypes;
   const updatedBoardState = [] as JSX.Element[];
 
   board.forEach((space) => {
@@ -234,12 +236,21 @@ export function getUpdateBoardState(props: UpdateBoardState): JSX.Element[] {
       ));
       if (initialSpace) {
         const { type, team } = initialSpace.props.piece.props;
-        const enPassantValue = Math.abs(initialPosition.y - desiredPosition.y) === 2;
-        const newPiece = type === PAWN
-          ? createPiece({
-            position: positionSpace, type, team, enPassant: enPassantValue,
-          })
-          : createPiece({ position: positionSpace, type, team });
+        let pieceProps;
+        if (type === PAWN) {
+          const enPassant = Math.abs(initialPosition.y - desiredPosition.y) === 2;
+
+          pieceProps = action === PROMOTION
+            ? {
+              position: positionSpace, type: QUEEN, team, enPassant,
+            }
+            : {
+              position: positionSpace, type, team, enPassant,
+            };
+        } else {
+          pieceProps = { position: positionSpace, type, team };
+        }
+        const newPiece = createPiece(pieceProps);
         const newSpace = createSpace(positionSpace, newPiece, key, number);
 
         updatedBoardState.push(newSpace);

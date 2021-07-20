@@ -11,4 +11,5 @@ export enum ActionTypes {
   DEFAULT_MOVE,
   EN_PASSANT,
   CASTELING,
+  PROMOTION,
 }

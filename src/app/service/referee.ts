@@ -29,10 +29,11 @@ class Referee {
 
   getTypeAction(props: ActionProps): ActionTypes {
     const {
-      NOT_VALID, DEFAULT_MOVE, EN_PASSANT, CASTELING,
+      NOT_VALID, DEFAULT_MOVE, EN_PASSANT, CASTELING, PROMOTION,
     } = ActionTypes;
 
     if (this.isEnPassantMove(props)) return EN_PASSANT;
+    if (this.isPromotion(props)) return PROMOTION;
     if (this.isCasteling(props)) return CASTELING;
     if (this.isDefaultMove(props)) return DEFAULT_MOVE;
     return NOT_VALID;
@@ -162,6 +163,18 @@ class Referee {
       }
     }
 
+    return false;
+  }
+
+  isPromotion(props: ActionProps): boolean {
+    const { currentPiece, desiredPosition } = props;
+    const { team, type } = currentPiece.props;
+    if (type === PieceTypes.PAWN) {
+      const specialRow = team === TeamTypes.LIGHT ? 7 : 0;
+      const isSpecialRow = desiredPosition.y === specialRow;
+
+      if (isSpecialRow && this.isPawnValidMove(props)) return true;
+    }
     return false;
   }
 
