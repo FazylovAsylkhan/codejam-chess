@@ -1,7 +1,6 @@
 .controller {
   position: relative;
-  margin: 0 auto;
-  transform: translateY(-30%);
+  margin: 30vh auto 30vh;
   width: 273px;
   height: 290px;
   &__btn {
@@ -20,7 +19,7 @@
     right: 0;
     font-size: 18px;
     line-height: 25px;
-    background: #40b3a2;
+    background: #C38D9D;
   }
   &__btn:nth-child(2) {
     top: 50%;

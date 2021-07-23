@@ -1,19 +1,21 @@
 import React, { FC, useEffect, useRef } from 'react';
 import ChessboardService from '../../../service';
 import { getUpdateBoardState, isSpaceOccupied } from '../../../service/utils';
+import { StateOrder } from '../../../types/chessboard';
 import { ActionProps, ActionTypes } from '../../../types/referee';
 import './chessboard.scss';
 
 interface ChessboardProps {
   initialBoardState: JSX.Element[];
   store: Array<JSX.Element[]>;
+  stateOrder: StateOrder;
 }
 
 const Chessboard: FC<ChessboardProps> = (props) => {
-  const { initialBoardState, store } = props;
+  const { initialBoardState, store, stateOrder } = props;
   const chessboardRef = useRef<HTMLDivElement>(null);
   const chessboardService = new ChessboardService(chessboardRef,
-    initialBoardState, store);
+    initialBoardState, store, stateOrder);
   const [board] = chessboardService.boardState;
   let isNotCheckmate = true;
 

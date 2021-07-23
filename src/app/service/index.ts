@@ -42,13 +42,13 @@ class ChessboardService {
 
   constructor(
     chessboardRef: ChessboardRef, initialBoardState: JSX.Element[],
-    store: Array<JSX.Element[]>,
+    store: Array<JSX.Element[]>, stateOrder: StateOrder,
   ) {
     this.activePieceState = useState<HTMLElement | null>(null);
     this.chessboardRef = chessboardRef;
     this.validSpaces = useState<string[]>([]);
     this.boardState = useState<JSX.Element[]>(initialBoardState);
-    this.stateOrder = useState<TeamTypes>(TeamTypes.LIGHT);
+    this.stateOrder = stateOrder;
     this.stateGrabPosition = useState<Position>({ x: -1, y: -1 });
     this.stateCurrentPiece = useState<JSX.Element | undefined>(undefined);
     this.stateStore = useState<Array<JSX.Element[]>>(store);

@@ -1,11 +1,21 @@
 .chessboard {
+  margin: 5vh auto 5vh;
   height: 738px;
   width: 738px;
-  margin: 25px auto 25px;
   display: grid;
   grid-template-columns: repeat(8, 91px);
   grid-template-rows: repeat(8, 91px);
   border: 5px solid #40b3a2;
-  border-radius: 2px;
   background-color: #40b3a2;
+  border-radius: 2px;
+  &::before {
+    z-index: -100;
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background: url("../../../assets/coordinats.svg") center  no-repeat;
+  }
 }

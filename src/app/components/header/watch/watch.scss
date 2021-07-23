@@ -1,0 +1,84 @@
+.watch {
+    width: 248px;
+    height: 55px;
+    padding: 0 60px;
+    overflow: hidden;
+    position: relative;
+    font-size: 36px;
+    line-height: 60px;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    letter-spacing: 0.15px;
+    margin: 0 auto;
+    font-weight: bold;
+    background: #f2ffff;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 2px 0px 0px 2px;
+    color: #68A5A3;
+    &::after {
+      content: ':';
+      position: absolute;
+      top:-2px;
+      left: 121px;
+      font-weight: bold;
+      font-size: 36px;
+      color: #68A5A3;
+      line-height: 60px;
+    }
+    &__item {
+      position: absolute;
+      width: 30px;
+      top: 0;
+      animation-play-state: paused;
+    }
+    &__min_1 {
+      left: 29%;
+      animation: minutes 3600s steps(6, end) infinite;
+    }
+  
+    &__min_2 {
+      left: 37%;
+      animation: seconds 600s steps(10, end) infinite;
+    }
+  
+    &__sec_1 {
+      left: 53%;
+      animation: minutes 60s steps(6, end) infinite;
+    }
+  
+    &__sec_2 {
+      left: 61%;
+      animation: seconds 10s steps(10, end) infinite;
+    }
+  
+    @keyframes minutes {
+      from {
+        top: 0%;
+      }
+      to {
+        top: -360px;
+      }
+    }
+  
+    @keyframes seconds {
+      from {
+        top: 0%;
+      }
+      to {
+        top: -600px;
+      }
+    }
+  
+    .start > &__item {
+      animation-play-state: running;
+    }
+  
+    .pause > &__item {
+      animation-play-state: paused;
+    }
+  
+    .reset > &__item {
+      animation: none;
+    }
+  }

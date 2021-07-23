@@ -1,24 +1,26 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import Footer from '../../components/footer/Footer';
 import Header from '../../components/header/Header';
+import Players from '../../components/players/players';
+import Popup from '../../components/popup';
 import Controller from './controller/Controller';
-import Players from './players/Players';
 
-const initialDate = [
-  { id: 1, name: 'Player 1' },
-  { id: 2, name: 'Player 2' },
-];
+const LobbiPage: FC = () => {
+  const [isVisiblePopup, setIsVisiblePopup] = useState<boolean>(false);
 
-const LobbiPage: FC = () => (
-  <div>
-    <Header />
-    <div style= {{ paddingTop: 125, paddingBottom: 340 }}>
-      <Players players={initialDate} />
-      <Controller />
+  return (
+    <div>
+      <Header />
+      <div>
+      <Players setIsVisiblePopup={setIsVisiblePopup} />
+        {isVisiblePopup
+          ? <Popup setIsVisiblePopup={setIsVisiblePopup} />
+          : <Controller />}
+      </div>
+      <Footer />
     </div>
-    <Footer />
-  </div>
 
-);
+  );
+};
 
 export default LobbiPage;
